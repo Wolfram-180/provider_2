@@ -5,13 +5,16 @@ import 'package:uuid/uuid.dart';
 
 void main() {
   runApp(
-    MaterialApp(
-      title: 'Test app',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+    ChangeNotifierProvider(
+      create: (_) => ObjectProvider(),
+      child: MaterialApp(
+        title: 'Test app',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
+        ),
+        home: const HomePage(),
       ),
-      home: const HomePage(),
     ),
   );
 }
@@ -24,6 +27,27 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Home page'),
+      ),
+      body: Column(
+        children: [
+          const Row(children: [
+            Expanded(child: CheapWidget()),
+            Expanded(child: ExpensiveWidget())
+          ]),
+          const Row(children: [Expanded(child: ObjectProviderWidget())]),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            TextButton(
+                onPressed: () {
+                  context.read<ObjectProvider>().start();
+                },
+                child: const Text('Start')),
+            TextButton(
+                onPressed: () {
+                  context.read<ObjectProvider>().stop();
+                },
+                child: const Text('Stop')),
+          ]),
+        ],
       ),
     );
   }
@@ -46,14 +70,10 @@ class BaseObject {
 }
 
 @immutable
-class ExpensiveObject extends BaseObject {
-  //
-}
+class ExpensiveObject extends BaseObject {}
 
 @immutable
-class CheapObject extends BaseObject {
-  //
-}
+class CheapObject extends BaseObject {}
 
 class ObjectProvider extends ChangeNotifier {
   late String id;
@@ -68,7 +88,15 @@ class ObjectProvider extends ChangeNotifier {
   ObjectProvider()
       : id = const Uuid().v4(),
         _cheapObject = CheapObject(),
-        _expensiveObject = ExpensiveObject();
+        _expensiveObject = ExpensiveObject() {
+    start();
+  }
+
+  @override
+  void notifyListeners() {
+    id = const Uuid().v4();
+    super.notifyListeners();
+  }
 
   void start() {
     _cheapObjectStreamSubs = Stream.periodic(
@@ -93,5 +121,72 @@ class ObjectProvider extends ChangeNotifier {
   void stop() {
     _cheapObjectStreamSubs.cancel();
     _expensiveObjectStreamSubs.cancel();
+  }
+}
+
+class ExpensiveWidget extends StatelessWidget {
+  const ExpensiveWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final expensiveObject = context.select<ObjectProvider, ExpensiveObject>(
+      (provider) => provider.expensiveObject,
+    );
+
+    return Container(
+      height: 100,
+      color: Colors.red,
+      child: Column(
+        children: [
+          const Text('Expensive widget'),
+          const Text('Last updated'),
+          Text(expensiveObject.lastUpdated),
+        ],
+      ),
+    );
+  }
+}
+
+class CheapWidget extends StatelessWidget {
+  const CheapWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final cheapObject = context.select<ObjectProvider, CheapObject>(
+      (provider) => provider.cheapObject,
+    );
+
+    return Container(
+      height: 100,
+      color: Colors.green,
+      child: Column(
+        children: [
+          const Text('Cheap widget'),
+          const Text('Last updated'),
+          Text(cheapObject.lastUpdated),
+        ],
+      ),
+    );
+  }
+}
+
+class ObjectProviderWidget extends StatelessWidget {
+  const ObjectProviderWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<ObjectProvider>();
+
+    return Container(
+      height: 100,
+      color: Colors.blue,
+      child: Column(
+        children: [
+          const Text('Object Provider Widget'),
+          const Text('ID'),
+          Text(provider.id),
+        ],
+      ),
+    );
   }
 }
